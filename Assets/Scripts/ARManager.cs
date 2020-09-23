@@ -1,15 +1,14 @@
-﻿using System.Collections;
-using System.Collections.Generic;
+﻿using Unity.Collections;
 using UnityEngine;
 using UnityEngine.XR.ARFoundation;
-using UnityEngine.Experimental.XR;
+using UnityEngine.XR.ARSubsystems;
 
 public class ARManager : MonoBehaviour {
 
-    private enum State : int {
+    private enum State {
         Idle = 0,
         FindingGround = 1,
-        PickMesh = 2     
+        PickMesh = 2
     }
 
     // Editor Fields
@@ -18,8 +17,6 @@ public class ARManager : MonoBehaviour {
     public ARPlaneManager planeManager;
     public GameObject asset;
     public ModelDialog dialog;
-
-    public List<ARRaycastHit> raycastHits = new List<ARRaycastHit>();
 
     private State state = State.Idle;
 
@@ -46,9 +43,13 @@ public class ARManager : MonoBehaviour {
 
     private void RaycastDetectAndPlace() {
         if (Input.GetMouseButton(0)) {
-            bool collision = sessionOrigin.Raycast(Input.mousePosition, raycastHits, TrackableType.All);
-            if (collision) {
-                asset.transform.position = raycastHits[0].pose.position;
+
+            Ray touchRay = sessionOrigin.camera.ScreenPointToRay(Input.mousePosition);
+
+            NativeArray<XRRaycastHit> collisions = planeManager.Raycast(touchRay, TrackableType.All, Allocator.Temp);
+
+            if (collisions.Length > 0) {
+                asset.transform.position = collisions[0].pose.position;
                 state = State.PickMesh;
             }
         }
@@ -68,32 +69,20 @@ public class ARManager : MonoBehaviour {
     }
 
     private void SetEvents() {
-        pointCloudManager.pointCloudUpdated += OnPointCloudUpdated;
-        planeManager.planeAdded += OnPlaneAdded;
-        planeManager.planeUpdated += OnPlaneUpdated;
-        planeManager.planeRemoved += OnPlaneRemoved;
+        pointCloudManager.pointCloudsChanged += OnPointCloudChanged;
+        planeManager.planesChanged += OnPlaneChanged;
     }
 
     private void ClearEvents() {
-        pointCloudManager.pointCloudUpdated -= OnPointCloudUpdated;
-        planeManager.planeAdded -= OnPlaneAdded;
-        planeManager.planeUpdated -= OnPlaneUpdated;
-        planeManager.planeRemoved -= OnPlaneRemoved;
+        pointCloudManager.pointCloudsChanged -= OnPointCloudChanged;
+        planeManager.planesChanged -= OnPlaneChanged;
     }
 
-    private void OnPointCloudUpdated(ARPointCloudUpdatedEventArgs pEventArgs) {
+    private void OnPointCloudChanged(ARPointCloudChangedEventArgs pEventArgs) {
         //Debug.Log("Point Cloud Updated");
     }
 
-    private void OnPlaneAdded(ARPlaneAddedEventArgs pEventArgs) {
-        Debug.Log("Plane Added");
-    }
-
-    private void OnPlaneUpdated(ARPlaneUpdatedEventArgs pEventArgs) {
-        Debug.Log("Plane Updated");
-    }
-
-    private void OnPlaneRemoved(ARPlaneRemovedEventArgs pEvenArgs) {
-        Debug.Log("Plane Removed");
+    private void OnPlaneChanged(ARPlanesChangedEventArgs pEventArgs) {
+        Debug.Log("Plane Changed");
     }
 }
